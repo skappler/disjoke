@@ -21,6 +21,7 @@ Discord(apiKey):
         await define(m)
 
     Command("or", mentioned=true, exact=false):
+        # Chooses between two options (yes I know this command is hidden)
         let options = message.strip().split(" or ")
         discard await m.reply(sample(options))
 
@@ -33,6 +34,7 @@ Discord(apiKey):
         await searchTmdb(m, false)
 
     command("fuck", "bitch", "cunt", "bastard", "cringe", "fat", "asswipe", mentioned=true, exact=false, soundex=true):
+        # Defends himself
         let possibleResponses {.global.} = [
             "Shut up fatty",
             "No, I'm stuff",
