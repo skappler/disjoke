@@ -1,0 +1,6 @@
+deploy.sh
+config.json
+db.sqlite3
+build/
+disjoke
+src/discord
