@@ -2,6 +2,7 @@
   <img src="https://top.gg/api/widget/481737806599946242.svg" alt="WOW such Joke" />
 </a>
 If for some reason you want to run this yourself, you need to make a config.json file with the following stuff
+
 ```
 {
     "OWNER_USER_ID": "Your user id",
