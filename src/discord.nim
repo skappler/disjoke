@@ -273,6 +273,8 @@ macro genCommandStructure*(body: untyped): untyped =
     echo(astGenRepr(result))
 
 proc postStats*(r: Ready) {.async.} =
+    # Updates the bots count on top.gg
+    # TODO move to a different file
     when declared(DISCORD_BOTS_TOKEN):
         Info.echo("Updating Stats")
         let client = newAsyncHttpClient()
@@ -284,7 +286,7 @@ proc postStats*(r: Ready) {.async.} =
         let serverCount = r.guilds.len()
         Debug.echo($serverCount)
         let requestBody = %*{"server_count": $serverCount}
-        asyncCheck client.request("https://top.gg/api/bots/481737806599946242/stats", httpMethod=HttpPost, body = $requestBody)
+        asyncCheck client.request(fmt"https://top.gg/api/bots/{r.user.id}/stats", httpMethod=HttpPost, body = $requestBody)
 
 proc updateStatus(s: Shard) {.async.} =
     while true:
@@ -301,7 +303,7 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
     cl.events.on_ready = proc (s: Shard, r: Ready) {.async.} =
         # Run when bot connects to discord
         echo("Connected to Discord as " & $r.user)       
-        when defined(release):
+        when defined(release): # Only update server count if running release version
             asyncCheck r.postStats
             
         let ownerUser = await cl.api.getUser(OWNER_USER_ID)
@@ -331,7 +333,6 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
                 
             except RestError: # Catch discord errors
                 echo(getCurrentExceptionMsg())
-                echo("probably no permissions")
             except:
                 let
                     e = getCurrentException()
