@@ -50,7 +50,7 @@ proc mention*(message: Message, input: string): string =
     return input.replace("author", fmt"<@!{message.author.id}>")
 
 
-# All the command generation needs to be in one place cause nim doesn't run the other macros before thiis one
+# All the command generation needs to be in one place cause nim doesn't run the other macros before this one
 macro genCommandStructure*(body: untyped): untyped =
     # Create the reddit commands
     var redditTree = newStmtList()
@@ -172,7 +172,8 @@ macro genCommandStructure*(body: untyped): untyped =
 
     var helpMessage = "~~A lot of stuff is missing~~ (most is now implemented) since I am rewriting the bot entirely\\nThis is because the old code broke and because I wanted to do it again in a different language\\nUse the report command to tell me if stuff is missing\\n"
     var mentionedHelpMessage = "You need to mention me for these:\\n"
-    
+
+    # Create the different tree paths that the command could be from
     var mentionedCaseTree = newTree(nnkCaseStmt, newIdentNode("sMessage"))
     var mentionedExtraTree = newStmtList()
 
@@ -261,11 +262,13 @@ macro genCommandStructure*(body: untyped): untyped =
     # Add the inexact commands onto the else path of the case statement
     mentionedCaseTree.add(nnkElse.newTree(mentionedExtraTree))
     generalCaseTree.add(nnkElse.newTree(generalExtraTree))
-    
+
+    # Run either the mentioned case tree or non mentioned case tree depending on if the user is mentioned or not
     var mentionedIfStmt = newIfStmt(
         (ident("isMentioned"), mentionedCaseTree)
         )
     mentionedIfStmt.add(newTree(nnkElse, generalCaseTree))
+
     result.add(mentionedIfStmt)
     echo(astGenRepr(result))
 
