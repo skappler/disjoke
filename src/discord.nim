@@ -25,6 +25,8 @@ export json
 import times
 export times
 export macros
+import tables
+export tables
 import config
 
 
@@ -42,6 +44,7 @@ proc reply*(message: Message, body: string, embed: Option[Embed] = none(Embed)):
     Debug.echo("replying with: " & body)
     return await cl.api.sendMessage(message.channelId, body, embed = embed)
 
+
 proc messageHome*(body: string) {.async.} =
     let owner = await cl.api.createUserDm(OWNER_USER_ID)
     asyncCheck cl.api.sendMessage(owner.id, body)
@@ -50,37 +53,48 @@ proc mention*(message: Message, input: string): string =
     return input.replace("author", fmt"<@!{message.author.id}>")
 
 
+type
+    wait = object
+        eventType: string
+        response: Future[string]
+        expected: string
+
+# Holds all the waits
+var waits*: Table[string, wait]
+
+proc waitFor*(m: Message, eventType, expected: string): Future[string] =
+    result = newFuture[string]()
+    case eventType:
+    of "MESSAGE_CREATE":
+        # Waits for the same author to reply
+        waits[m.channelId] = wait(eventType: eventType, response: result, expected: expected)
+    of "MESSAGE_REACTION_ADD":
+        # Waits for a certain emoji to be responded
+        waits[m.id] = wait(eventType: eventType, response: result, expected: expected)
+    return result
+
+
 # All the command generation needs to be in one place cause nim doesn't run the other macros before this one
 macro genCommandStructure*(body: untyped): untyped =
     # Create the reddit commands
     var redditTree = newStmtList()
     for index in 0..<len(subreddits):
         let subreddit = subreddits[index]
-        var commandTree = newTree(nnkStmtList)
-        let commandBody = newTree(nnkStmtList, newCommentStmtNode("Gets posts from the subreddit r/" & subreddit.subreddit))
-        commandBody.add(
-            newNimnode(nnkVarSection).add(
-                # Gets the subreddit at the specified index, saves having to redeclare it
-                newIdentDefs(newIdentNode("sub"), newEmptyNode(),  nnkBracketExpr.newTree(newIdentNode("subreddits"), newLit(index))),
-                newIdentDefs(newidentNode("post"), newEmptynode(), newCall("getPost", newidentnode("sub")))))
-
-        commandBody.add(
-            nnkDiscardStmt.newTree(
-            nnkCommand.newTree(
-                newIdentNode("await"),
-                     newCall("reply",
-                        newIdentNode("m"), 
-                        "post".dot("body"), 
-                        "post".dot("embed")
-            ))))
-        commandTree.add(
-            newStrLitNode("gimme " & subreddit.command),
-            newStrLitNode("give me " & subreddit.command),
-            newStrLitNode("give " & subreddit.command),
-            newParam("soundex", "true")
+        body.add(
+            newStmtList(
+                newStrLitNode("gimme " & subreddit.command),
+                newStrLitNode("give me " & subreddit.command),
+                newStrLitNode("give " & subreddit.command),
+                newParam("soundex", "true"),
+                newStmtList(
+                    newCommentStmtNode("Gets posts from the subreddit r/" & subreddit.subreddit),
+                    parseStmt(fmt"let sub = subreddits[{index}]"),
+                    parseStmt(fmt"let post = getPost(sub)"),
+                    parseStmt("discard await m.reply(post.body, post.embed)")
+                )
+            )
         )
-        commandTree.add(commandBody)
-        body.add(commandTree)
+
     result = newStmtList()
 
     # Create generic text commands
@@ -119,8 +133,8 @@ macro genCommandStructure*(body: untyped): untyped =
                              )
                         )
                 )
-            
-        body.add(newStmtList(newStrLitNode(commandNode.key), 
+
+        body.add(newStmtList(newStrLitNode(commandNode.key),
             newParam("exact", "false"),
             newParam("soundex", "true"),
             commandBody
@@ -140,7 +154,7 @@ macro genCommandStructure*(body: untyped): untyped =
                             newIdentNode("m"),
                             newLit(commandNode.val.getStr)
                         )
-                    )   
+                    )
                 )
             )
             )
@@ -156,14 +170,14 @@ macro genCommandStructure*(body: untyped): untyped =
                         newCall("reply",
                             newIdentNode("m"),
                             newCall("sample", responsesTree)
-                        )   
+                        )
                     )
                 )
             )
-               
+
         # body.add(newStmtList(newStrLitNode(commandNode.key), nnkExprEqExpr.newTree(newIdentNode("mentioned"), newLit("true")), nnkExprEqExpr.newTree(newIdentNode("exact"), newLit("false")), commandBody))
-        body.add(newStmtList(newStrLitNode(commandNode.key), 
-            newParam("mentioned", "true"), 
+        body.add(newStmtList(newStrLitNode(commandNode.key),
+            newParam("mentioned", "true"),
             newParam("exact", "false"),
             newParam("soundex", "true"),
             commandBody
@@ -179,7 +193,7 @@ macro genCommandStructure*(body: untyped): untyped =
 
     var generalCaseTree = newTree(nnkCaseStmt, newIdentNode("sMessage"))
     var generalExtraTree = newStmtList()
-    
+
     for commandNode in body:
         var commandTree = newStmtList()
         var commandNames: seq[string]
@@ -189,14 +203,14 @@ macro genCommandStructure*(body: untyped): untyped =
         var mentioned = false
         var exact = true
         var soundex = false
-        
+
         for paramNode in commandNode:
             ## Finds all the values specified for the command
             case paramNode.kind:
             of  nnkStrLit:
                 commandNames.add(sentenceSound(paramNode.strVal))
                 normalCommandNames.add(paramNode.strVal)
-                
+
             of nnkExprEqExpr:
                 # I know .boolVal exists, but it doesn't work
                 let value = paramNode[1].strVal
@@ -204,7 +218,7 @@ macro genCommandStructure*(body: untyped): untyped =
                 of "mentioned": mentioned = value == "true"
                 of "exact": exact = value == "true"
                 of "soundex": soundex = value == "true"
-                
+
             of nnkStmtList:
                 for n in paramNode:
                     if n.kind == nnkCommentStmt: ## Finds the comment
@@ -213,7 +227,7 @@ macro genCommandStructure*(body: untyped): untyped =
                         else:
                             mentionedHelpMessage &= "**" & normalCommandNames.join(", ") & "**:\\n\\t" & n.strVal.replace("\n", "\\n").replace("\\n", "\\n\\t") & "\\n"
                         break
-                        
+
                 # Adds all the different ways of saying the command
                 var commandBody = paramNode
                 if not soundex:
@@ -224,12 +238,12 @@ macro genCommandStructure*(body: untyped): untyped =
                             newIdentNode("message")
                         ), paramNode
                     ))
-                    
+
                 var newOfBranch = nnkOfBranch.newTree()
                 for command in commandNames:
                     newOfBranch.add(newLit(command))
                 newOfBranch.add(commandBody)
-                
+
                 # Checks which branch to add it to
                 if mentioned and exact:
                     mentionedCaseTree.add(newOfBranch)
@@ -243,6 +257,13 @@ macro genCommandStructure*(body: untyped): untyped =
                         ), commandBody))
                     )
                 elif not exact:
+                    # echo(astGenRepr(parseStmt(fmt"if {commandNames[0]} in sMessage:")))
+                    # generalExtraTree.add(
+                        # parseStmt(fmt"if {commandNames[0]} in sMessage:")
+                    # )
+                    # generalExtraTree.add qoute do:
+                        # if `commandNames[0]` in sMessage:
+                            # commandBody
                     generalExtraTree.add(
                         newIfStmt((
                             nnkInfix.newTree(
@@ -256,8 +277,9 @@ macro genCommandStructure*(body: untyped): untyped =
                     generalCaseTree.add(newOfBranch)
             else:
                 continue
+
     helpMessage &= "\\n" & mentionedHelpMessage
-    result.add(parseStmt("let helpMsg {.global.} = " & '"' & helpMessage & '"'))
+    result.add(parseStmt("let helpMsg {.global.} = " & '"' & helpMessage & '"')) # Make the helpMsg global so it is not recreated every call
 
     # Add the inexact commands onto the else path of the case statement
     mentionedCaseTree.add(nnkElse.newTree(mentionedExtraTree))
@@ -265,15 +287,20 @@ macro genCommandStructure*(body: untyped): untyped =
 
     # Run either the mentioned case tree or non mentioned case tree depending on if the user is mentioned or not
     var mentionedIfStmt = newIfStmt(
-        (ident("isMentioned"), mentionedCaseTree)
+        (
+            ident("isMentioned"), # If mentioned then check against mentionedCaseTree
+                mentionedCaseTree)
+    )
+    mentionedIfStmt.add(
+        nnkElse.newTree(
+            generalCaseTree # Else run the general case tree since they are not mentioned
         )
-    mentionedIfStmt.add(newTree(nnkElse, generalCaseTree))
-
+    )
     result.add(mentionedIfStmt)
     echo(astGenRepr(result))
 
 proc postStats*(r: Ready) {.async.} =
-    # Updates the bots count on top.gg
+    ## Updates the bots count on top.gg
     # TODO move to a different file
     when declared(DISCORD_BOTS_TOKEN):
         Info.echo("Updating Stats")
@@ -288,10 +315,11 @@ proc postStats*(r: Ready) {.async.} =
         let requestBody = %*{"server_count": $serverCount}
         asyncCheck client.request(fmt"https://top.gg/api/bots/{r.user.id}/stats", httpMethod=HttpPost, body = $requestBody)
 
+## test
 proc updateStatus(s: Shard) {.async.} =
     while true:
         asyncCheck s.updateStatus(game = some GameStatus(
-                    name: "Go Go Power Rangers for the new nintendo 3ds", 
+                    name: "Go Go Power Rangers for the new nintendo 3ds",
                     kind: gatPlaying
                 ))
         await sleepAsync(60 * 5 * 1000)
@@ -302,15 +330,34 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
 
     cl.events.on_ready = proc (s: Shard, r: Ready) {.async.} =
         # Run when bot connects to discord
-        echo("Connected to Discord as " & $r.user)       
+        echo("Connected to Discord as " & $r.user)
         when defined(release): # Only update server count if running release version
             asyncCheck r.postStats
-            
+
         let ownerUser = await cl.api.getUser(OWNER_USER_ID)
         echo $ownerUser  & " is my owner"
         # asyncCheck updateStatus(s)
-            
-    cl.events.message_create = proc (s: Shard, m: Message) {.async.} = 
+
+    cl.events.onDispatch = proc (s: Shard, evt: string, data: JsonNode) {.async.} =
+        case evt:
+        of "MESSAGE_CREATE":
+            # If it is a message then check if there is something being awaited in the channel
+            if waits.hasKey(data["channel_id"].str):
+                let wait = waits[data["channel_id"].str]
+                if wait.expected == data["author"]["id"].str:
+                    wait.response.complete(data["content"].str)
+                    waits.del(data["channel_id"].str)
+
+        of "MESSAGE_REACTION_ADD":
+            # If it is an emoji then check if a message is waiting on a reaction
+            let wait = waits[data["message_id"].str]
+            if data["emoji"]["name"].str == wait.expected:
+                wait.response.complete(data["emoji"]["name"].str)
+                waits.del(data["message_id"].str)
+        else:
+            return
+
+    cl.events.message_create = proc (s: Shard, m: Message) {.async.} =
         block:
             if m.author.bot:
                  break
@@ -318,7 +365,7 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
             let sMessage = sentenceSound(message)
             let mentions = m.mention_users
             let isMentioned = mentions.anyIt(it.id == s.user.id)
-            
+
             when not defined(release):
                 echo("+--------------+")
                 echo(isMentioned)
@@ -330,7 +377,7 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
                     echo(helpMsg)
                     asyncCheck m.reply(helpMsg)
                     break
-                
+
             except RestError: # Catch discord errors
                 echo(getCurrentExceptionMsg())
             except:
@@ -338,8 +385,8 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
                     e = getCurrentException()
                     msg = getCurrentExceptionMsg()
                 asyncCheck messageHome(fmt"Error {repr(e)}: {msg}")
-                
-                        
 
-    
+
+
+
     waitFor cl.startSession()
