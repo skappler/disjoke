@@ -103,7 +103,7 @@ proc getPostsService*() {.async.} =
                 Info.echo("Updating subreddit: " & subreddit.subreddit)
                 let posts = await client.getPosts(subreddit.subreddit, "hot", "hour")
                 if hasData:
-                    RDB().where("subreddit", "=", subreddit.subreddit).delete()
+                    RDB().table("posts").where("subreddit", "=", subreddit.subreddit).delete()
 
                 for post in posts:
                     RDB().table("posts").insert(%*{
@@ -115,5 +115,5 @@ proc getPostsService*() {.async.} =
                     })
         hasData = true
         Info.echo("Done")
-        await sleepAsync(3600 * 1000)
+        await sleepAsync(20 * 1000)
         
