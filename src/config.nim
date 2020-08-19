@@ -1,19 +1,11 @@
 import macros
 import json
+import strformat
 
 macro createConfigValues(): untyped =
-    result = nnkConstSection.newTree()
+    result = newStmtList()
     let configJson = parseJson(readFile("config.json"))
     for (key, value) in configJson.pairs():
-        echo(key,": ", value.getStr())
-        result.add(
-            nnkConstDef.newTree(
-                nnkPostFix.newTree(
-                    newIdentNode("*"),
-                    newIdentNode(key)
-                ),
-                newEmptyNode(),
-                newLit(value.getStr())
-            )
-        )
+        result.add parseStmt(&"const {key}* = \"{value.getStr()}\"")
+        
 createConfigValues()
