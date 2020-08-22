@@ -43,7 +43,6 @@
         "Shut up virgin",
         "Not even the furries will accept you as one of their own",
         "Do I smell salt?",
-        "Rawr (That means please call me a good boi)",
         "I may be a bad boi but at least I am not author, oh wait that's you",
         "Gimme your god damn bitcoins",
         "Are you a patch of grass? because I wanna shit on you",
@@ -57,6 +56,11 @@
       ],
      "should of": "*should have or *should've",
       "i lose the game": "I lose the game",
+      "zoop": ":point_right::sunglasses::point_right:",
+      "what day is today": "wednesday",
+      "gimme bats": "https://cdn.discordapp.com/attachments/701379885293371392/701662346577444974/wyzh28yt2ut41.png"
+  },
+  "mentionedResponses": {
       "reee": [
         "Shut up autism incarnate",
         "REEEEEEEEEEEEEEEEEEEE",
@@ -64,11 +68,6 @@
         "you want some tendies?",
         "shut up you lil bitch"
       ],
-      "zoop": ":point_right::sunglasses::point_right:",
-      "what day is today": "wednesday",
-      "gimme bats": "https://cdn.discordapp.com/attachments/701379885293371392/701662346577444974/wyzh28yt2ut41.png"
-  },
-  "mentionedResponses": {
       "happy birthday": "Thank you kind spirit",
       "i love you": [
         "who doesn't",
@@ -77,9 +76,8 @@
         "love is such a wibbly wobbly quantity, we should really start using the metric system instead of just saying love and like",
         "yeet yippidy deee"
       ],
-      "nice wood": "Thank you, <@259999449995018240> uses it to play fetch with me :smirk: :wink: :smirk: pls help :wink: :smirk: OH GOD HE IS DOING IT AGAIN :wink :wink: :smirk:",
       "are you ok": "I Don't have emotions and sometimes that makes me very sad =(",
-      "lemme smash": "ok :smirk: :smirk: No cause thats demon shit:smirk: :wink:",
+      "lemme smash": "ok :smirk: :smirk: No cause thats non christian:smirk: :wink:",
       "who do you love": [
         "I know yo mum likes me at night :smirk:",
         "The amazing dev who made me"
@@ -94,6 +92,5 @@
       ],
       "your broke": "It is 'you're' and yes I am",
       "nani": "Go away you virgin",
-      "sing me happy birthday\"": "ok you sad fucking virgin \n\nhappy birthday to you\nhappy birthday to you\nyou are turning some age years old\nand you have no friends so I sing this to you"
   }
 }
