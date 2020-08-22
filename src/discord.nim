@@ -40,7 +40,7 @@ proc sentenceSound*(input: string): string =
     for word in input.split(" "):
         result &= soundex(word)
 
-proc reply*(message: Message, body: string, embed: Option[Embed] = none(Embed)): Future[Message] {.async.} =
+proc reply*(message: Message, body: string, embed: Option[Embed] = none(Embed)): Future[Message] {.async, inline.} =
     Debug.echo("replying with: " & body)
     return await cl.api.sendMessage(message.channelId, body, embed = embed)
 
@@ -49,7 +49,7 @@ proc messageHome*(body: string) {.async.} =
     let owner = await cl.api.createUserDm(OWNER_USER_ID)
     asyncCheck cl.api.sendMessage(owner.id, body)
 
-proc mention*(message: Message, input: string): string =
+proc mention*(message: Message, input: string): string {.inline.} =
     return input.replace("author", fmt"<@!{message.author.id}>")
 
 
@@ -105,21 +105,14 @@ macro genCommandStructure*(body: untyped): untyped =
         let strCommand = commandNode.val.getStr()
         if strCommand != "":
             commandBody.add(
-                nnkDiscardStmt.newTree(
-                    nnkCommand.newTree(
-                        newIdentNode("await"),
-                        newCall("reply",
-                            newIdentNode("m"),
-                            newLit(strCommand)
-                        )
-                    )
-                )
+                parseStmt(&"discard await m.reply(m.mention(\"{commandNode.val.getStr}\"))")
             )
         else:
             var responsesTree = nnkBracket.newTree()
             for item in commandNode.val.getElems():
                 responsesTree.add(newLit(item.getStr()))
             commandBody.add(
+                # parseStmt("discard await m.reply(m.mention(sample))")
                 nnkDiscardStmt.newTree(
                     newTree(nnkCommand,
                     newIdentNode("await"),
@@ -145,18 +138,8 @@ macro genCommandStructure*(body: untyped): untyped =
         var commandBody = newStmtList()
         let strCommand = commandNode.val.getStr()
         if strCommand != "":
-            commandBody.add(newTree(nnkDiscardStmt,
-                nnkCommand.newTree(
-                    newIdentNode("await"),
-                    newCall("reply",
-                        newIdentNode("m"),
-                        newCall("mention",
-                            newIdentNode("m"),
-                            newLit(commandNode.val.getStr)
-                        )
-                    )
-                )
-            )
+            commandBody.add(
+                parseStmt(&"discard await m.reply(m.mention(\"{commandNode.val.getStr}\"))")
             )
         else:
             # If it is a list then create a list of all responses and choose random one everytime
@@ -164,7 +147,8 @@ macro genCommandStructure*(body: untyped): untyped =
             for item in commandNode.val.getElems():
                 responsesTree.add(newLit(item.getStr()))
 
-            commandBody.add(newTree(nnkDiscardStmt,
+            commandBody.add(
+            newTree(nnkDiscardStmt,
                 nnkCommand.newTree(
                     newIdentNode("await"),
                         newCall("reply",
@@ -175,7 +159,6 @@ macro genCommandStructure*(body: untyped): untyped =
                 )
             )
 
-        # body.add(newStmtList(newStrLitNode(commandNode.key), nnkExprEqExpr.newTree(newIdentNode("mentioned"), newLit("true")), nnkExprEqExpr.newTree(newIdentNode("exact"), newLit("false")), commandBody))
         body.add(newStmtList(newStrLitNode(commandNode.key),
             newParam("mentioned", "true"),
             newParam("exact", "false"),
@@ -257,13 +240,6 @@ macro genCommandStructure*(body: untyped): untyped =
                         ), commandBody))
                     )
                 elif not exact:
-                    # echo(astGenRepr(parseStmt(fmt"if {commandNames[0]} in sMessage:")))
-                    # generalExtraTree.add(
-                        # parseStmt(fmt"if {commandNames[0]} in sMessage:")
-                    # )
-                    # generalExtraTree.add qoute do:
-                        # if `commandNames[0]` in sMessage:
-                            # commandBody
                     generalExtraTree.add(
                         newIfStmt((
                             nnkInfix.newTree(
@@ -336,6 +312,8 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
 
         let ownerUser = await cl.api.getUser(OWNER_USER_ID)
         echo $ownerUser  & " is my owner"
+        let gatewayBot = await cl.api.getGatewayBot()
+        echo(gatewayBot.session_start_limit.max_concurrency)
         # asyncCheck updateStatus(s)
 
     cl.events.onDispatch = proc (s: Shard, evt: string, data: JsonNode) {.async.} =
@@ -348,12 +326,6 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
                     wait.response.complete(data["content"].str)
                     waits.del(data["channel_id"].str)
 
-        of "MESSAGE_REACTION_ADD":
-            # If it is an emoji then check if a message is waiting on a reaction
-            let wait = waits[data["message_id"].str]
-            if data["emoji"]["name"].str == wait.expected:
-                wait.response.complete(data["emoji"]["name"].str)
-                waits.del(data["message_id"].str)
         else:
             return
 
