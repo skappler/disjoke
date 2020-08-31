@@ -14,13 +14,14 @@ bin           = @["disjoke"]
 
 requires "nim >= 1.2.0"
 requires "allographer >= 0.12.4"
-requires "dimscord#head"
+requires "dimscord"
 requires "packedjson"
-requires "https://github.com/ire4ever1190/soundex-nim"
+requires "https://github.com/ire4ever1190/soundex-nim#head"
+requires "opentdb"
 
 task release, "Build release binary":
     echo("Building binary")
-    exec("nim c -d:release -d:danger --opt:speed src/disjoke.nim")
+    exec("nim c -d:danger src/disjoke.nim")
     echo("Stripping binary")
     exec(findExe("strip") & " -s build/disjoke")
     echo("Running upx")

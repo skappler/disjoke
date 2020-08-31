@@ -115,5 +115,5 @@ proc getPostsService*() {.async.} =
                     })
         hasData = true
         Info.echo("Done")
-        await sleepAsync(20 * 1000)
+        await sleepAsync(3600 * 1000)
         

@@ -292,11 +292,18 @@ proc postStats*(r: Ready) {.async.} =
         asyncCheck client.request(fmt"https://top.gg/api/bots/{r.user.id}/stats", httpMethod=HttpPost, body = $requestBody)
 
 ## test
-proc updateStatus(s: Shard) {.async.} =
+proc updateStatMsg*(s: Shard) {.async.} =
+    let messages = @[
+        (gatPlaying, "chess"),
+        (gatPlaying, "Corney in the house for the new 3ds"),
+        (gatListening, "10 hours of main menu animal crossing theme song"),
+        (gatPlaying, "basketball")
+    ]
     while true:
-        asyncCheck s.updateStatus(game = some GameStatus(
-                    name: "Go Go Power Rangers for the new nintendo 3ds",
-                    kind: gatPlaying
+        let message = sample(messages)
+        await s.updateStatus(game = some GameStatus(
+                    name: message[1],
+                    kind: message[0]
                 ))
         await sleepAsync(60 * 5 * 1000)
 
@@ -314,7 +321,7 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
         echo $ownerUser  & " is my owner"
         let gatewayBot = await cl.api.getGatewayBot()
         echo(gatewayBot.session_start_limit.max_concurrency)
-        # asyncCheck updateStatus(s)
+        asyncCheck updateStatMsg(s)
 
     cl.events.onDispatch = proc (s: Shard, evt: string, data: JsonNode) {.async.} =
         case evt:

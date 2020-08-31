@@ -14,7 +14,7 @@ putEnv("LOG_IS_FILE", "false")
 # discord
 switch("d", "ssl")
 
-#switch("d", "dimscordDebug")
+# switch("d", "dimscordDebug")
 switch("outdir", "build")
 
 #switch("gc", "arc")

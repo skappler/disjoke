@@ -25,6 +25,10 @@ Discord(apiKey):
         let options = message.strip().split(" or ")
         discard await m.reply(sample(options))
 
+    command("quiz", mentioned=true, exact=false, soundex=true):
+        ## Think your smart? me neither, but have a go at this quiz
+        await quiz(m)
+
     command("movie", mentioned=true, exact=false):
         ## Returns info for a movie. Info is from The Movie Database 🎥
         await searchTmdb(m, true)
