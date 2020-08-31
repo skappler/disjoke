@@ -368,4 +368,4 @@ template Discord*(token: string, templateBody: untyped): untyped {.dirty.} =
 
 
 
-    waitFor cl.startSession()
+    waitFor cl.startSession(guild_subscriptions = false)
