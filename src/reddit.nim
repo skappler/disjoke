@@ -47,7 +47,8 @@ proc newSubreddit*(subreddit, command: string, needs: varargs[Needs]): Subreddit
 
 const subreddits* = @[
     newSubreddit("memes", "meme", Title, Image),
-    newSubreddit("jokes", "joke", Title, Body)
+    newSubreddit("jokes", "joke", Title, Body),
+    newSubreddit("shittypickuplines", "sex", Title, Body)
 ]
 
 proc getPost*(subreddit: Subreddit): tuple[body: string, embed: Option[Embed]]=
@@ -99,20 +100,18 @@ proc getPostsService*() {.async.} =
     while true:
         let client = newAsyncHttpClient()
         for subreddit in subreddits:
-            transaction:
-                Info.echo("Updating subreddit: " & subreddit.subreddit)
-                let posts = await client.getPosts(subreddit.subreddit, "hot", "hour")
-                if hasData:
-                    RDB().table("posts").where("subreddit", "=", subreddit.subreddit).delete()
-
-                for post in posts:
-                    RDB().table("posts").insert(%*{
-                        "id": post.id,
-                        "title": post.title,
-                        "url": post.url,
-                        "selftext": post.selftext,
-                        "subreddit": subreddit.subreddit
-                    })
+            Info.echo("Updating subreddit: " & subreddit.subreddit)
+            let posts = await client.getPosts(subreddit.subreddit, "hot", "hour")
+            if hasData:
+                RDB().table("posts").where("subreddit", "=", subreddit.subreddit).delete()
+            for post in posts:
+                RDB().table("posts").insert(%*{
+                    "id": post.id,
+                    "title": post.title,
+                    "url": post.url,
+                    "selftext": post.selftext,
+                    "subreddit": subreddit.subreddit
+                })
         hasData = true
         Info.echo("Done")
         await sleepAsync(3600 * 1000)
